@@ -29,31 +29,42 @@ private final class AtomicByteCounter: @unchecked Sendable {
     }
 }
 
-/// Manages a pool of independent URLSession workers for one direction (download or upload).
-/// Each worker owns its own ephemeral URLSession to establish separate TCP/QUIC connections
-/// and avoid HTTP/2 single-connection multiplexing bottlenecks.
+/// Manages a pool of independent URLSession workers cycling across multiple SpeedEndpoints
+/// with automatic failure cooldown and separate TCP/QUIC connections per worker.
 private final class TransferWorkerPool: NSObject, URLSessionDataDelegate, URLSessionTaskDelegate, @unchecked Sendable {
     enum Mode {
         case download
         case upload
     }
 
+    private struct TaskRecord {
+        let endpointURL: String
+        var transferredBytes: Int64 = 0
+        var isAcceptableDownloadStatus: Bool = true
+    }
+
     private let mode: Mode
     private let lock = NSLock()
     private var isRunning = false
     private var sessions: [URLSession] = []
-    private var targetURL: URL?
+    private var endpoints: [SpeedEndpoint] = []
+    private var nextIndex: Int = 0
+    private var cooldownUntil: [String: TimeInterval] = [:]
+    private var taskRecords: [Int: TaskRecord] = [:]
     private var uploadPayload: Data = Data()
-    private var consecutiveErrors = 0
+    private var consecutiveZeroByteFailures = 0
 
     let byteCounter = AtomicByteCounter()
     var onError: ((String?) -> Void)?
+
+    private static let browserUserAgent =
+        "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
 
     private let delegateQueue: OperationQueue = {
         let q = OperationQueue()
         q.name = "com.paomanlema.transfer.delegate"
         q.qualityOfService = .userInitiated
-        q.maxConcurrentOperationCount = 16
+        q.maxConcurrentOperationCount = 24
         return q
     }()
 
@@ -62,11 +73,12 @@ private final class TransferWorkerPool: NSObject, URLSessionDataDelegate, URLSes
         super.init()
     }
 
-    func start(urlString: String, threadCount: Int, uploadChunkMB: Int = 8) {
+    func start(endpoints rawEndpoints: [SpeedEndpoint], threadCount: Int, uploadChunkMB: Int = 4) {
         stop()
 
-        guard let url = URL(string: urlString) else {
-            onError?("无效的测速地址：\(urlString)")
+        let validEndpoints = rawEndpoints.filter { PaoManConfParser.isValidHTTPURL($0.url) }
+        guard !validEndpoints.isEmpty else {
+            onError?(mode == .download ? "未配置有效的下载测速节点" : "未配置有效的上传测速节点")
             return
         }
 
@@ -79,9 +91,12 @@ private final class TransferWorkerPool: NSObject, URLSessionDataDelegate, URLSes
 
         lock.lock()
         self.isRunning = true
-        self.targetURL = url
+        self.endpoints = validEndpoints.shuffled()
+        self.nextIndex = 0
+        self.cooldownUntil.removeAll()
+        self.taskRecords.removeAll()
         self.uploadPayload = payload
-        self.consecutiveErrors = 0
+        self.consecutiveZeroByteFailures = 0
         self.sessions = []
 
         let workerCount = max(1, threadCount)
@@ -92,8 +107,8 @@ private final class TransferWorkerPool: NSObject, URLSessionDataDelegate, URLSes
             let config = URLSessionConfiguration.ephemeral
             config.urlCache = nil
             config.requestCachePolicy = .reloadIgnoringLocalAndRemoteCacheData
-            config.timeoutIntervalForRequest = 20
-            config.timeoutIntervalForResource = 180
+            config.timeoutIntervalForRequest = 15
+            config.timeoutIntervalForResource = 120
             config.httpMaximumConnectionsPerHost = 4
             config.allowsCellularAccess = true
             config.allowsExpensiveNetworkAccess = true
@@ -119,6 +134,7 @@ private final class TransferWorkerPool: NSObject, URLSessionDataDelegate, URLSes
         isRunning = false
         let activeSessions = sessions
         sessions = []
+        taskRecords.removeAll()
         uploadPayload = Data()
         lock.unlock()
 
@@ -127,44 +143,69 @@ private final class TransferWorkerPool: NSObject, URLSessionDataDelegate, URLSes
         }
     }
 
+    /// Selects the next healthy endpoint via round-robin, skipping endpoints currently on cooldown.
+    private func pickNextEndpointLocked() -> SpeedEndpoint? {
+        guard !endpoints.isEmpty else { return nil }
+        let now = ProcessInfo.processInfo.systemUptime
+        let count = endpoints.count
+
+        for _ in 0..<count {
+            let candidate = endpoints[nextIndex % count]
+            nextIndex = (nextIndex + 1) % count
+            if let until = cooldownUntil[candidate.url], until > now {
+                continue
+            }
+            return candidate
+        }
+
+        // All endpoints are cooling down: clear cooldowns and pick the next one
+        cooldownUntil.removeAll()
+        let fallback = endpoints[nextIndex % count]
+        nextIndex = (nextIndex + 1) % count
+        return fallback
+    }
+
     private func launchNextTask(on session: URLSession) {
         lock.lock()
-        guard isRunning, let baseURL = targetURL else {
+        guard isRunning, let endpoint = pickNextEndpointLocked() else {
             lock.unlock()
             return
         }
         let payload = uploadPayload
         lock.unlock()
 
-        let requestURL = cacheBustedURL(baseURL)
+        guard let requestURL = URL(string: endpoint.url) else { return }
+
         var request = URLRequest(url: requestURL)
         request.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
         request.setValue("no-cache, no-store", forHTTPHeaderField: "Cache-Control")
+        request.setValue(Self.browserUserAgent, forHTTPHeaderField: "User-Agent")
 
+        for (k, v) in endpoint.headers where !k.isEmpty {
+            request.setValue(v, forHTTPHeaderField: k)
+        }
+
+        let task: URLSessionTask
         switch mode {
         case .download:
-            request.httpMethod = "GET"
-            let task = session.dataTask(with: request)
-            task.resume()
+            request.httpMethod = endpoint.method.isEmpty ? "GET" : endpoint.method
+            task = session.dataTask(with: request)
         case .upload:
-            request.httpMethod = "POST"
-            request.setValue("application/octet-stream", forHTTPHeaderField: "Content-Type")
-            let task = session.uploadTask(with: request, from: payload)
-            task.resume()
+            request.httpMethod = endpoint.method.isEmpty ? "POST" : endpoint.method
+            if request.value(forHTTPHeaderField: "Content-Type") == nil {
+                request.setValue("application/octet-stream", forHTTPHeaderField: "Content-Type")
+            }
+            task = session.uploadTask(with: request, from: payload)
         }
+
+        lock.lock()
+        taskRecords[task.taskIdentifier] = TaskRecord(endpointURL: endpoint.url)
+        lock.unlock()
+
+        task.resume()
     }
 
-    private func cacheBustedURL(_ url: URL) -> URL {
-        guard var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
-            return url
-        }
-        var items = components.queryItems ?? []
-        items.append(URLQueryItem(name: "_t", value: String(Int.random(in: 100_000...999_999_999))))
-        components.queryItems = items
-        return components.url ?? url
-    }
-
-    /// Generates a shared pseudo-random payload so proxies/TLS layers cannot compress it away.
+    /// Generates a shared pseudo-random payload so TLS/proxies cannot compress it away.
     private static func makeIncompressiblePayload(megabytes: Int) -> Data {
         let byteCount = max(1, megabytes) * 1024 * 1024
         var data = Data(count: byteCount)
@@ -181,14 +222,50 @@ private final class TransferWorkerPool: NSObject, URLSessionDataDelegate, URLSes
         return data
     }
 
-    // MARK: - URLSessionDataDelegate (Download bytes)
+    // MARK: - URLSessionDataDelegate (Download response + bytes)
+
+    func urlSession(
+        _ session: URLSession,
+        dataTask: URLSessionDataTask,
+        didReceive response: URLResponse,
+        completionHandler: @escaping (URLSession.ResponseDisposition) -> Void
+    ) {
+        if mode == .download, let http = response as? HTTPURLResponse {
+            let ok = (200...299).contains(http.statusCode)
+            lock.lock()
+            if var rec = taskRecords[dataTask.taskIdentifier] {
+                rec.isAcceptableDownloadStatus = ok
+                taskRecords[dataTask.taskIdentifier] = rec
+                if !ok {
+                    cooldownUntil[rec.endpointURL] = ProcessInfo.processInfo.systemUptime + 20.0
+                }
+            }
+            lock.unlock()
+
+            if !ok {
+                completionHandler(.cancel)
+                return
+            }
+        }
+        completionHandler(.allow)
+    }
 
     func urlSession(_ session: URLSession, dataTask: URLSessionDataTask, didReceive data: Data) {
         guard mode == .download else { return }
-        byteCounter.add(Int64(data.count))
+        let count = Int64(data.count)
+        guard count > 0 else { return }
+
         lock.lock()
-        consecutiveErrors = 0
+        let allowed = taskRecords[dataTask.taskIdentifier]?.isAcceptableDownloadStatus ?? true
+        if allowed {
+            taskRecords[dataTask.taskIdentifier]?.transferredBytes += count
+            consecutiveZeroByteFailures = 0
+        }
         lock.unlock()
+
+        if allowed {
+            byteCounter.add(count)
+        }
     }
 
     // MARK: - URLSessionTaskDelegate (Upload bytes + loop restart)
@@ -200,37 +277,62 @@ private final class TransferWorkerPool: NSObject, URLSessionDataDelegate, URLSes
         totalBytesSent: Int64,
         totalBytesExpectedToSend: Int64
     ) {
-        guard mode == .upload else { return }
+        guard mode == .upload, bytesSent > 0 else { return }
         byteCounter.add(bytesSent)
+
         lock.lock()
-        consecutiveErrors = 0
+        taskRecords[task.taskIdentifier]?.transferredBytes += bytesSent
+        consecutiveZeroByteFailures = 0
         lock.unlock()
     }
 
     func urlSession(_ session: URLSession, task: URLSessionTask, didCompleteWithError error: Error?) {
         lock.lock()
         let active = isRunning
-        if let err = error as NSError?, err.code != NSURLErrorCancelled {
-            consecutiveErrors += 1
-            let errCount = consecutiveErrors
-            lock.unlock()
+        let record = taskRecords.removeValue(forKey: task.taskIdentifier)
+        let bytesMoved = record?.transferredBytes ?? 0
 
-            if active {
-                if errCount >= 6 {
-                    onError?(err.localizedDescription)
-                }
-                let delay = min(Double(errCount) * 0.25, 2.0)
-                DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + delay) { [weak self, weak session] in
-                    guard let self, let session else { return }
-                    self.launchNextTask(on: session)
-                }
-            }
+        if !active {
+            lock.unlock()
             return
         }
+
+        let nsError = error as NSError?
+        let isUserCancel = (nsError?.code == NSURLErrorCancelled)
+
+        // If the task transferred actual bytes (very common for upload endpoints returning 403/405/413
+        // after accepting the request body), consider it healthy and immediately cycle to the next node!
+        if bytesMoved > 0 {
+            consecutiveZeroByteFailures = 0
+            lock.unlock()
+            onError?(nil)
+            launchNextTask(on: session)
+            return
+        }
+
+        // Zero bytes transferred: cool down this specific endpoint so workers move to healthy nodes.
+        if let epURL = record?.endpointURL {
+            cooldownUntil[epURL] = ProcessInfo.processInfo.systemUptime + 18.0
+        }
+
+        let failureCount: Int
+        if !isUserCancel {
+            consecutiveZeroByteFailures += 1
+            failureCount = consecutiveZeroByteFailures
+        } else {
+            failureCount = consecutiveZeroByteFailures
+        }
+        let endpointCount = max(endpoints.count, 1)
         lock.unlock()
 
-        if active {
-            launchNextTask(on: session)
+        if let nsError, !isUserCancel, failureCount >= max(8, endpointCount) {
+            onError?(nsError.localizedDescription)
+        }
+
+        let backoff: TimeInterval = failureCount >= endpointCount ? 0.35 : 0.05
+        DispatchQueue.global(qos: .userInitiated).asyncAfter(deadline: .now() + backoff) { [weak self, weak session] in
+            guard let self, let session else { return }
+            self.launchNextTask(on: session)
         }
     }
 }
@@ -275,7 +377,6 @@ private final class DirectionTracker {
         }
 
         recentSnapshots.append((now, totalBytes))
-        // Keep ~1.5s sliding window for smooth yet responsive instantaneous speed
         while recentSnapshots.count > 2, let first = recentSnapshots.first, now - first.time > 1.5 {
             recentSnapshots.removeFirst()
         }
@@ -313,6 +414,7 @@ public final class SpeedTestViewModel: ObservableObject {
     @Published public var upload = DirectionMetrics()
     @Published public var config: SpeedTestConfig = SpeedTestConfig.load()
     @Published public var statusError: String?
+    @Published public var importNotice: String?
 
     public var totalTrafficBytes: Int64 {
         download.totalBytes + upload.totalBytes
@@ -381,7 +483,10 @@ public final class SpeedTestViewModel: ObservableObject {
         download.samples.removeAll()
 
         downloadTracker.startRun(currentTotalBytes: downloadPool.byteCounter.get(), now: now)
-        downloadPool.start(urlString: config.downloadURL, threadCount: config.downloadThreads)
+        downloadPool.start(
+            endpoints: config.activeProfile.downloadEndpoints,
+            threadCount: config.downloadThreads
+        )
         ensureTimerRunning()
         updateIdleTimer()
     }
@@ -411,7 +516,7 @@ public final class SpeedTestViewModel: ObservableObject {
 
         uploadTracker.startRun(currentTotalBytes: uploadPool.byteCounter.get(), now: now)
         uploadPool.start(
-            urlString: config.uploadURL,
+            endpoints: config.activeProfile.uploadEndpoints,
             threadCount: config.uploadThreads,
             uploadChunkMB: config.uploadChunkMB
         )
@@ -472,6 +577,63 @@ public final class SpeedTestViewModel: ObservableObject {
         if wasUploadRunning {
             stopUpload()
             startUpload()
+        }
+    }
+
+    /// Imports an Android `PAOMAN_SPEED_TEST_CONFIG` `.conf` file from a local URL (Files / WeChat Share).
+    @discardableResult
+    public func importConfFile(from url: URL) -> Result<String, Error> {
+        let needsSecurityScope = url.startAccessingSecurityScopedResource()
+        defer {
+            if needsSecurityScope {
+                url.stopAccessingSecurityScopedResource()
+            }
+        }
+
+        do {
+            let data = try Data(contentsOf: url)
+            return importConfData(data)
+        } catch {
+            return .failure(error)
+        }
+    }
+
+    @discardableResult
+    public func importConfData(_ data: Data) -> Result<String, Error> {
+        do {
+            let parsed = try PaoManConfParser.parse(data: data)
+            var mergedProfiles = parsed.profiles
+            if !mergedProfiles.contains(where: { $0.id == SpeedProfile.cloudflareDefault.id }) {
+                mergedProfiles.append(.cloudflareDefault)
+            }
+            var updated = config
+            updated.profiles = mergedProfiles
+            updated.selectedProfileId = parsed.selectedProfileId
+            updateConfig(updated)
+
+            let active = updated.activeProfile
+            let summary = "已导入「\(active.name)」：下载 \(active.downloadEndpoints.count) 节点 / 上传 \(active.uploadEndpoints.count) 节点"
+            showTemporaryNotice(summary)
+            return .success(summary)
+        } catch {
+            return .failure(error)
+        }
+    }
+
+    public func restoreBuiltInDefaults() {
+        let defaults = SpeedTestConfig.makeDefault()
+        updateConfig(defaults)
+        let active = defaults.activeProfile
+        showTemporaryNotice("已恢复内置「\(active.name)」")
+    }
+
+    private func showTemporaryNotice(_ message: String) {
+        importNotice = message
+        Task { @MainActor [weak self] in
+            try? await Task.sleep(nanoseconds: 3_500_000_000)
+            if self?.importNotice == message {
+                self?.importNotice = nil
+            }
         }
     }
 

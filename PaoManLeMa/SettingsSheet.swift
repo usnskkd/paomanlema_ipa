@@ -1,66 +1,89 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
-/// Optional lightweight configuration sheet (opened by tapping the version label "V4.3.2")
-/// so the main screen remains 100% pure and uncluttered.
+/// Configuration sheet opened by tapping "V4.3.2" so the main speed test screen
+/// stays 100% faithful and uncluttered.
 struct SettingsSheet: View {
     @Environment(\.dismiss) private var dismiss
     @ObservedObject var viewModel: SpeedTestViewModel
 
-    @State private var downloadURL: String = ""
-    @State private var uploadURL: String = ""
-    @State private var downloadThreads: Int = 6
-    @State private var uploadThreads: Int = 4
-    @State private var uploadChunkMB: Int = 8
+    @State private var selectedProfileId: Int = 1
+    @State private var downloadUrlsText: String = ""
+    @State private var uploadUrlsText: String = ""
+    @State private var downloadThreads: Int = 8
+    @State private var uploadThreads: Int = 8
+    @State private var uploadChunkMB: Int = 4
+
+    @State private var showFileImporter = false
+    @State private var alertMessage: String?
 
     var body: some View {
         NavigationView {
             Form {
-                Section(header: Text("测速节点 URL")) {
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("下载测速地址 (GET)")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        #if os(iOS)
-                        TextField("https://speed.cloudflare.com/__down?bytes=50000000", text: $downloadURL)
-                            .keyboardType(.URL)
-                            .textInputAutocapitalization(.never)
-                            .disableAutocorrection(true)
-                            .font(.footnote)
-                        #else
-                        TextField("https://speed.cloudflare.com/__down?bytes=50000000", text: $downloadURL)
-                            .disableAutocorrection(true)
-                            .font(.footnote)
-                        #endif
+                Section(header: Text("节点配置方案（兼容 Android .conf）")) {
+                    ForEach(viewModel.config.profiles) { profile in
+                        Button {
+                            selectProfile(profile)
+                        } label: {
+                            HStack {
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text(profile.name)
+                                        .font(.body)
+                                        .foregroundColor(.primary)
+                                    Text("下载 \(profile.downloadEndpoints.count) 节点 · 上传 \(profile.uploadEndpoints.count) 节点")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                                Spacer()
+                                if profile.id == selectedProfileId {
+                                    Image(systemName: "checkmark.circle.fill")
+                                        .foregroundColor(Color(red: 0.04, green: 0.34, blue: 0.82))
+                                }
+                            }
+                        }
                     }
 
-                    VStack(alignment: .leading, spacing: 6) {
-                        Text("上传测速地址 (POST)")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        #if os(iOS)
-                        TextField("https://speed.cloudflare.com/__up", text: $uploadURL)
-                            .keyboardType(.URL)
-                            .textInputAutocapitalization(.never)
-                            .disableAutocorrection(true)
-                            .font(.footnote)
-                        #else
-                        TextField("https://speed.cloudflare.com/__up", text: $uploadURL)
-                            .disableAutocorrection(true)
-                            .font(.footnote)
-                        #endif
+                    Button {
+                        showFileImporter = true
+                    } label: {
+                        Label("导入 .conf 配置文件", systemImage: "doc.badge.plus")
+                            .foregroundColor(Color(red: 0.04, green: 0.34, blue: 0.82))
                     }
 
-                    Button("恢复默认 Cloudflare 双向节点") {
-                        downloadURL = SpeedTestConfig.defaultDownloadURL
-                        uploadURL = SpeedTestConfig.defaultUploadURL
+                    Button {
+                        viewModel.restoreBuiltInDefaults()
+                        syncFromViewModel()
+                        alertMessage = "已恢复内置国内多节点配置（64 下载 + 119 上传）与 Cloudflare 方案"
+                    } label: {
+                        Label("恢复内置默认方案", systemImage: "arrow.counterclockwise")
+                            .foregroundColor(.secondary)
                     }
-                    .foregroundColor(Color(red: 0.04, green: 0.34, blue: 0.82))
                 }
 
                 Section(header: Text("并发参数")) {
-                    Stepper("下载线程数：\(downloadThreads)", value: $downloadThreads, in: 1...16)
-                    Stepper("上传线程数：\(uploadThreads)", value: $uploadThreads, in: 1...12)
-                    Stepper("单次上传块大小：\(uploadChunkMB) MB", value: $uploadChunkMB, in: 2...20, step: 2)
+                    Stepper("下载并发线程：\(downloadThreads)", value: $downloadThreads, in: 1...24)
+                    Stepper("上传并发线程：\(uploadThreads)", value: $uploadThreads, in: 1...24)
+                    Stepper("单次上传块：\(uploadChunkMB) MB", value: $uploadChunkMB, in: 1...16)
+                }
+
+                Section(header: Text("当前方案下载 URL（每行一个，共 \(PaoManConfParser.parseLines(downloadUrlsText).count) 个）")) {
+                    TextEditor(text: $downloadUrlsText)
+                        .font(.system(size: 12, design: .monospaced))
+                        .frame(minHeight: 110)
+                        .disableAutocorrection(true)
+                        #if os(iOS)
+                        .textInputAutocapitalization(.never)
+                        #endif
+                }
+
+                Section(header: Text("当前方案上传 URL（每行一个，共 \(PaoManConfParser.parseLines(uploadUrlsText).count) 个）")) {
+                    TextEditor(text: $uploadUrlsText)
+                        .font(.system(size: 12, design: .monospaced))
+                        .frame(minHeight: 110)
+                        .disableAutocorrection(true)
+                        #if os(iOS)
+                        .textInputAutocapitalization(.never)
+                        #endif
                 }
 
                 Section {
@@ -72,7 +95,7 @@ struct SettingsSheet: View {
                     }
                 }
             }
-            .navigationTitle("测速参数")
+            .navigationTitle("节点与测速参数")
             #if os(iOS)
             .navigationBarTitleDisplayMode(.inline)
             #endif
@@ -84,25 +107,79 @@ struct SettingsSheet: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("保存") {
-                        let updated = SpeedTestConfig(
-                            downloadURL: downloadURL,
-                            uploadURL: uploadURL,
-                            downloadThreads: downloadThreads,
-                            uploadThreads: uploadThreads,
-                            uploadChunkMB: uploadChunkMB
-                        )
-                        viewModel.updateConfig(updated)
+                        saveChanges()
                         dismiss()
                     }
                 }
             }
         }
         .onAppear {
-            downloadURL = viewModel.config.downloadURL
-            uploadURL = viewModel.config.uploadURL
-            downloadThreads = viewModel.config.downloadThreads
-            uploadThreads = viewModel.config.uploadThreads
-            uploadChunkMB = viewModel.config.uploadChunkMB
+            syncFromViewModel()
         }
+        .fileImporter(
+            isPresented: $showFileImporter,
+            allowedContentTypes: [.item],
+            allowsMultipleSelection: false
+        ) { result in
+            switch result {
+            case .success(let urls):
+                guard let url = urls.first else { return }
+                switch viewModel.importConfFile(from: url) {
+                case .success(let summary):
+                    syncFromViewModel()
+                    alertMessage = summary
+                case .failure(let error):
+                    alertMessage = "导入失败：\(error.localizedDescription)"
+                }
+            case .failure(let error):
+                alertMessage = "选择文件失败：\(error.localizedDescription)"
+            }
+        }
+        .alert("提示", isPresented: Binding(
+            get: { alertMessage != nil },
+            set: { if !$0 { alertMessage = nil } }
+        )) {
+            Button("确定", role: .cancel) {}
+        } message: {
+            Text(alertMessage ?? "")
+        }
+    }
+
+    private func syncFromViewModel() {
+        let cfg = viewModel.config
+        selectedProfileId = cfg.activeProfile.id
+        downloadUrlsText = cfg.activeProfile.downloadUrlsText
+        uploadUrlsText = cfg.activeProfile.uploadUrlsText
+        downloadThreads = cfg.downloadThreads
+        uploadThreads = cfg.uploadThreads
+        uploadChunkMB = cfg.uploadChunkMB
+    }
+
+    private func selectProfile(_ profile: SpeedProfile) {
+        selectedProfileId = profile.id
+        downloadUrlsText = profile.downloadUrlsText
+        uploadUrlsText = profile.uploadUrlsText
+    }
+
+    private func saveChanges() {
+        var updated = viewModel.config
+        updated.selectedProfileId = selectedProfileId
+        updated.downloadThreads = downloadThreads
+        updated.uploadThreads = uploadThreads
+        updated.uploadChunkMB = uploadChunkMB
+
+        let parsedDL = PaoManConfParser.parseLines(downloadUrlsText)
+        let parsedUL = PaoManConfParser.parseLines(uploadUrlsText)
+
+        if let idx = updated.profiles.firstIndex(where: { $0.id == selectedProfileId }) {
+            if !parsedDL.isEmpty {
+                updated.profiles[idx].downloadEndpoints = parsedDL
+            }
+            if !parsedUL.isEmpty {
+                updated.profiles[idx].uploadEndpoints = parsedUL
+            }
+        }
+
+        viewModel.updateConfig(updated)
     }
 }

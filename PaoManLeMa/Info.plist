@@ -6,6 +6,21 @@
 	<string>zh_CN</string>
 	<key>CFBundleDisplayName</key>
 	<string>跑满了吗</string>
+	<key>CFBundleDocumentTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeName</key>
+			<string>PaoMan Speed Config</string>
+			<key>LSHandlerRank</key>
+			<string>Alternate</string>
+			<key>LSItemContentTypes</key>
+			<array>
+				<string>public.json</string>
+				<string>public.plain-text</string>
+				<string>public.data</string>
+			</array>
+		</dict>
+	</array>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -19,8 +34,10 @@
 	<key>CFBundleShortVersionString</key>
 	<string>4.3.2</string>
 	<key>CFBundleVersion</key>
-	<string>1</string>
+	<string>2</string>
 	<key>LSRequiresIPhoneOS</key>
+	<true/>
+	<key>LSSupportsOpeningDocumentsInPlace</key>
 	<true/>
 	<key>NSAppTransportSecurity</key>
 	<dict>

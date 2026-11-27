@@ -14,6 +14,7 @@
 		B10000050000000000000001 /* SpeedMetrics.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000050000000000000001 /* SpeedMetrics.swift */; };
 		B10000060000000000000001 /* SpeedTestEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000060000000000000001 /* SpeedTestEngine.swift */; };
 		B10000070000000000000001 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A10000070000000000000001 /* Assets.xcassets */; };
+		B10000100000000000000001 /* default_speed_profiles.conf in Resources */ = {isa = PBXBuildFile; fileRef = A10000100000000000000001 /* default_speed_profiles.conf */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -25,6 +26,7 @@
 		A10000060000000000000001 /* SpeedTestEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeedTestEngine.swift; sourceTree = "<group>"; };
 		A10000070000000000000001 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		A10000080000000000000001 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		A10000100000000000000001 /* default_speed_profiles.conf */ = {isa = PBXFileReference; lastKnownFileType = text; path = default_speed_profiles.conf; sourceTree = "<group>"; };
 		A10000090000000000000001 /* PaoManLeMa.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PaoManLeMa.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -57,6 +59,7 @@
 				A10000050000000000000001 /* SpeedMetrics.swift */,
 				A10000060000000000000001 /* SpeedTestEngine.swift */,
 				A10000070000000000000001 /* Assets.xcassets */,
+				A10000100000000000000001 /* default_speed_profiles.conf */,
 				A10000080000000000000001 /* Info.plist */,
 			);
 			path = PaoManLeMa;
@@ -130,6 +133,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				B10000070000000000000001 /* Assets.xcassets in Resources */,
+				B10000100000000000000001 /* default_speed_profiles.conf in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

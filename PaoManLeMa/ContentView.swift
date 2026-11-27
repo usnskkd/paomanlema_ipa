@@ -34,7 +34,14 @@ struct ContentView: View {
                     badgeColor: Color(red: 0.41, green: 0.38, blue: 0.53)
                 )
 
-                if let error = viewModel.statusError {
+                if let notice = viewModel.importNotice {
+                    Text(notice)
+                        .font(.caption)
+                        .foregroundColor(primaryBlue)
+                        .lineLimit(2)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 4)
+                } else if let error = viewModel.statusError {
                     Text(error)
                         .font(.caption)
                         .foregroundColor(activeRed)
@@ -59,6 +66,9 @@ struct ContentView: View {
                 viewModel.resetAllTraffic()
             }
             Button("取消", role: .cancel) {}
+        }
+        .onOpenURL { url in
+            _ = viewModel.importConfFile(from: url)
         }
     }
 
