@@ -1,0 +1,45 @@
+name: Build Unsigned iOS IPA
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build-ipa:
+    runs-on: macos-15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Build unsigned PaoManLeMa.app
+        run: |
+          xcodebuild \
+            -project PaoManLeMa.xcodeproj \
+            -scheme PaoManLeMa \
+            -configuration Release \
+            -sdk iphoneos \
+            -destination 'generic/platform=iOS' \
+            -derivedDataPath build/DerivedData \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            AD_HOC_CODE_SIGNING_ALLOWED=NO \
+            build
+
+      - name: Package unsigned IPA
+        run: |
+          rm -rf build/Payload PaoManLeMa.ipa
+          mkdir -p build/Payload
+          cp -R build/DerivedData/Build/Products/Release-iphoneos/PaoManLeMa.app build/Payload/
+          cd build
+          zip -qry ../PaoManLeMa.ipa Payload
+          cd ..
+          ls -lh PaoManLeMa.ipa
+
+      - name: Upload PaoManLeMa.ipa artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: PaoManLeMa-iOS-IPA
+          path: PaoManLeMa.ipa
+          retention-days: 30

@@ -1,0 +1,265 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		B10000010000000000000001 /* PaoManLeMaApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000010000000000000001 /* PaoManLeMaApp.swift */; };
+		B10000020000000000000001 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000020000000000000001 /* ContentView.swift */; };
+		B10000030000000000000001 /* SpeedChartCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000030000000000000001 /* SpeedChartCard.swift */; };
+		B10000040000000000000001 /* SettingsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000040000000000000001 /* SettingsSheet.swift */; };
+		B10000050000000000000001 /* SpeedMetrics.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000050000000000000001 /* SpeedMetrics.swift */; };
+		B10000060000000000000001 /* SpeedTestEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000060000000000000001 /* SpeedTestEngine.swift */; };
+		B10000070000000000000001 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A10000070000000000000001 /* Assets.xcassets */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		A10000010000000000000001 /* PaoManLeMaApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PaoManLeMaApp.swift; sourceTree = "<group>"; };
+		A10000020000000000000001 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
+		A10000030000000000000001 /* SpeedChartCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeedChartCard.swift; sourceTree = "<group>"; };
+		A10000040000000000000001 /* SettingsSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsSheet.swift; sourceTree = "<group>"; };
+		A10000050000000000000001 /* SpeedMetrics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeedMetrics.swift; sourceTree = "<group>"; };
+		A10000060000000000000001 /* SpeedTestEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SpeedTestEngine.swift; sourceTree = "<group>"; };
+		A10000070000000000000001 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		A10000080000000000000001 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		A10000090000000000000001 /* PaoManLeMa.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = PaoManLeMa.app; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		E10000020000000000000001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		C10000010000000000000001 = {
+			isa = PBXGroup;
+			children = (
+				C10000020000000000000001 /* PaoManLeMa */,
+				C10000030000000000000001 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		C10000020000000000000001 /* PaoManLeMa */ = {
+			isa = PBXGroup;
+			children = (
+				A10000010000000000000001 /* PaoManLeMaApp.swift */,
+				A10000020000000000000001 /* ContentView.swift */,
+				A10000030000000000000001 /* SpeedChartCard.swift */,
+				A10000040000000000000001 /* SettingsSheet.swift */,
+				A10000050000000000000001 /* SpeedMetrics.swift */,
+				A10000060000000000000001 /* SpeedTestEngine.swift */,
+				A10000070000000000000001 /* Assets.xcassets */,
+				A10000080000000000000001 /* Info.plist */,
+			);
+			path = PaoManLeMa;
+			sourceTree = "<group>";
+		};
+		C10000030000000000000001 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				A10000090000000000000001 /* PaoManLeMa.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		D10000020000000000000001 /* PaoManLeMa */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = F20000010000000000000001 /* Build configuration list for PBXNativeTarget "PaoManLeMa" */;
+			buildPhases = (
+				E10000010000000000000001 /* Sources */,
+				E10000020000000000000001 /* Frameworks */,
+				E10000030000000000000001 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = PaoManLeMa;
+			productName = PaoManLeMa;
+			productReference = A10000090000000000000001 /* PaoManLeMa.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		D10000010000000000000001 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1540;
+				LastUpgradeCheck = 1540;
+				TargetAttributes = {
+					D10000020000000000000001 = {
+						CreatedOnToolsVersion = 15.4;
+					};
+				};
+			};
+			buildConfigurationList = F10000010000000000000001 /* Build configuration list for PBXProject "PaoManLeMa" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = zh-Hans;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				zh-Hans,
+				Base,
+			);
+			mainGroup = C10000010000000000000001;
+			productRefGroup = C10000030000000000000001 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				D10000020000000000000001 /* PaoManLeMa */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		E10000030000000000000001 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B10000070000000000000001 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		E10000010000000000000001 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B10000010000000000000001 /* PaoManLeMaApp.swift in Sources */,
+				B10000020000000000000001 /* ContentView.swift in Sources */,
+				B10000030000000000000001 /* SpeedChartCard.swift in Sources */,
+				B10000040000000000000001 /* SettingsSheet.swift in Sources */,
+				B10000050000000000000001 /* SpeedMetrics.swift in Sources */,
+				B10000060000000000000001 /* SpeedTestEngine.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		F10000020000000000000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		F10000030000000000000001 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		F20000020000000000000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = PaoManLeMa/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 4.3.2;
+				PRODUCT_BUNDLE_IDENTIFIER = com.paoman.lema.ios;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		F20000030000000000000001 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = NO;
+				INFOPLIST_FILE = PaoManLeMa/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 4.3.2;
+				PRODUCT_BUNDLE_IDENTIFIER = com.paoman.lema.ios;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		F10000010000000000000001 /* Build configuration list for PBXProject "PaoManLeMa" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F10000020000000000000001 /* Debug */,
+				F10000030000000000000001 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		F20000010000000000000001 /* Build configuration list for PBXNativeTarget "PaoManLeMa" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F20000020000000000000001 /* Debug */,
+				F20000030000000000000001 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = D10000010000000000000001 /* Project object */;
+}
