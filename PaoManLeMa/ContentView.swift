@@ -121,7 +121,7 @@ struct ContentView: View {
                 Button {
                     showSettings = true
                 } label: {
-                    Text("V4.3.2")
+                    Text("v1.0.0")
                         .font(.system(size: 13.5, weight: .medium))
                         .foregroundColor(Color(red: 0.38, green: 0.40, blue: 0.44))
                 }
