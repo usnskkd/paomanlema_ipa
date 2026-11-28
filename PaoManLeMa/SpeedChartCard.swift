@@ -12,14 +12,14 @@ struct SpeedChartCard: View {
     private let maxVisibleSlots = 90 // 45s at 2 Hz
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 10) {
             headerRow
             chartSection
         }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 16)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
         .background(
-            RoundedRectangle(cornerRadius: 22, style: .continuous)
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
                 .fill(Color(red: 0.918, green: 0.925, blue: 0.945))
         )
     }
@@ -85,23 +85,23 @@ struct SpeedChartCard: View {
                     Spacer()
                     Text("0K")
                 }
-                .font(.system(size: 12.5, weight: .regular).monospacedDigit())
+                .font(.system(size: 12, weight: .regular).monospacedDigit())
                 .foregroundColor(Color(red: 0.26, green: 0.28, blue: 0.32))
-                .frame(width: 48, height: 112, alignment: .leading)
+                .frame(width: 46, height: 92, alignment: .leading)
 
                 // Real-time rolling line chart
                 ZStack(alignment: .topTrailing) {
                     Canvas { context, size in
                         drawChart(in: &context, size: size, maxY: maxY)
                     }
-                    .frame(height: 112)
+                    .frame(height: 92)
                     .background(Color(red: 0.875, green: 0.892, blue: 0.925))
                     .clipped()
 
                     if metrics.averageMbps > 0.01 {
                         let ratio = min(max(metrics.averageMbps / maxY, 0.05), 0.95)
-                        let lineY = 112.0 * (1.0 - ratio)
-                        let labelY = lineY > 82 ? max(4, lineY - 22) : min(90, lineY + 4)
+                        let lineY = 92.0 * (1.0 - ratio)
+                        let labelY = lineY > 64 ? max(4, lineY - 20) : min(72, lineY + 4)
 
                         Text(SpeedFormatter.formatShortM(metrics.averageMbps))
                             .font(.system(size: 14, weight: .semibold).monospacedDigit())
