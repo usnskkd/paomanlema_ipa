@@ -4,10 +4,12 @@ import UIKit
 #endif
 
 /// Second screen displaying the connected Wi-Fi name and technical details
-/// arranged identically to the user's reference layout.
+/// arranged identically to the user's reference layout, enhanced with
+/// Apple Shortcuts (`x-callback-url`) sync for full iOS 17+ radio metrics.
 struct WiFiInfoView: View {
     @ObservedObject var monitor: WiFiInfoMonitor
     @State private var copiedHint: String?
+    @State private var showShortcutGuide = false
 
     private let primaryBlue = Color(red: 0.039, green: 0.337, blue: 0.816)
     private let dividerColor = Color(red: 0.941, green: 0.945, blue: 0.957)
@@ -16,10 +18,19 @@ struct WiFiInfoView: View {
 
     var body: some View {
         ScrollView(showsIndicators: false) {
-            VStack(spacing: 16) {
+            VStack(spacing: 14) {
                 headerRow
 
                 infoCard
+
+                if let msg = monitor.shortcutStatusMessage {
+                    Text(msg)
+                        .font(.caption)
+                        .foregroundColor(primaryBlue)
+                        .multilineTextAlignment(.center)
+                        .frame(maxWidth: .infinity)
+                        .padding(.horizontal, 6)
+                }
 
                 if monitor.snapshot.isWiFiConnected && monitor.needsLocationPermission {
                     Button {
@@ -50,16 +61,19 @@ struct WiFiInfoView: View {
                 }
             }
             .padding(.horizontal, 16)
-            .padding(.top, 12)
+            .padding(.top, 10)
             .padding(.bottom, 20)
         }
         .onAppear {
             monitor.start()
         }
+        .sheet(isPresented: $showShortcutGuide) {
+            ShortcutSetupSheet(monitor: monitor)
+        }
     }
 
     private var headerRow: some View {
-        HStack(alignment: .center) {
+        HStack(alignment: .center, spacing: 8) {
             VStack(alignment: .leading, spacing: 4) {
                 Text("Wi-Fi 信息")
                     .font(.system(size: 28, weight: .bold))
@@ -73,24 +87,43 @@ struct WiFiInfoView: View {
                         .frame(width: 8, height: 8)
 
                     Text(monitor.snapshot.statusSubtitle)
-                        .font(.system(size: 13.5, weight: .medium))
+                        .font(.system(size: 12.5, weight: .medium))
                         .foregroundColor(Color(red: 0.38, green: 0.40, blue: 0.44))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.85)
                 }
             }
 
-            Spacer()
+            Spacer(minLength: 4)
+
+            Button {
+                showShortcutGuide = true
+            } label: {
+                Image(systemName: "questionmark.circle")
+                    .font(.system(size: 19, weight: .medium))
+                    .foregroundColor(primaryBlue)
+                    .frame(width: 34, height: 34)
+                    .background(
+                        Circle()
+                            .fill(Color(red: 0.882, green: 0.914, blue: 0.996))
+                    )
+            }
+            .buttonStyle(.plain)
 
             Button {
                 monitor.refresh()
+                if monitor.snapshot.isWiFiConnected {
+                    monitor.triggerShortcutSync()
+                }
             } label: {
-                Text("刷新")
+                Text("同步")
                     .font(.system(size: 13.5, weight: .semibold))
-                    .foregroundColor(primaryBlue)
-                    .padding(.horizontal, 16)
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 15)
                     .padding(.vertical, 8)
                     .background(
                         Capsule(style: .continuous)
-                            .fill(Color(red: 0.882, green: 0.914, blue: 0.996))
+                            .fill(primaryBlue)
                     )
             }
             .buttonStyle(.plain)
@@ -101,7 +134,6 @@ struct WiFiInfoView: View {
         let s = monitor.snapshot
 
         return VStack(spacing: 0) {
-            // Top row: Connected Wi-Fi Name
             infoRow(
                 label: "已连接 Wi-Fi",
                 value: s.displaySSID,
@@ -115,7 +147,11 @@ struct WiFiInfoView: View {
             infoRow(label: "安全性", value: s.securityText)
             infoRow(label: "连接速度", value: s.linkSpeedText)
             infoRow(label: "频段", value: s.frequencyBandText)
-            infoRow(label: "MAC 地址", value: s.macAddressText)
+            infoRow(
+                label: "MAC 地址",
+                value: s.macAddressText,
+                copyValue: s.bssid ?? (s.macAddressText != "--" ? s.macAddressText : nil)
+            )
             infoRow(
                 label: "IPv4 地址",
                 value: s.ipv4Address ?? "--",
@@ -160,7 +196,7 @@ struct WiFiInfoView: View {
                     .foregroundColor(valueTint ?? valueColor)
                     .multilineTextAlignment(.trailing)
             }
-            .padding(.vertical, 15)
+            .padding(.vertical, 14)
             .contentShape(Rectangle())
             .onTapGesture {
                 if let copyValue, !copyValue.isEmpty {
@@ -199,7 +235,7 @@ struct WiFiInfoView: View {
                 }
             }
         }
-        .padding(.vertical, 15)
+        .padding(.vertical, 14)
         .contentShape(Rectangle())
         .onTapGesture {
             if !addresses.isEmpty {
@@ -220,5 +256,98 @@ struct WiFiInfoView: View {
                 copiedHint = nil
             }
         }
+    }
+}
+
+/// Built-in guide sheet explaining how to create the companion Apple Shortcut
+/// (takes ~30 seconds, one-time setup) and customize its name.
+private struct ShortcutSetupSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @ObservedObject var monitor: WiFiInfoMonitor
+    @State private var nameInput: String = ""
+    @State private var copiedTemplate = false
+
+    private let primaryBlue = Color(red: 0.039, green: 0.337, blue: 0.816)
+
+    private let shortcutTextTemplate = """
+    ssid=【在此插入：网络名称】
+    std=【在此插入：Wi-Fi标准】
+    rssi=【在此插入：RSSI】
+    rx=【在此插入：RX速率】
+    tx=【在此插入：TX速率】
+    ch=【在此插入：信道】
+    mac=【在此插入：硬件MAC地址】
+    """
+
+    var body: some View {
+        NavigationView {
+            Form {
+                Section(header: Text("配套快捷指令名称")) {
+                    TextField("跑满了吗WiFi", text: $nameInput)
+                        .disableAutocorrection(true)
+                        #if os(iOS)
+                        .textInputAutocapitalization(.never)
+                        #endif
+
+                    Button("立即调用该快捷指令测试") {
+                        saveName()
+                        dismiss()
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                            monitor.triggerShortcutSync()
+                        }
+                    }
+                    .foregroundColor(primaryBlue)
+                }
+
+                Section(header: Text("30 秒配置步骤（只需一次）")) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("1. 打开系统自带「快捷指令」App，点右上角「+」新建快捷指令，命名为「\(nameInput.isEmpty ? WiFiInfoMonitor.defaultShortcutName : nameInput)」。")
+                        Text("2. 添加多个「获取网络详情」动作，分别勾选：网络名称、Wi-Fi 标准、RSSI、RX 速率、TX 速率、信道、硬件 MAC 地址。")
+                        Text("3. 最后添加一个「文本」动作（必须是最后一步，不要弹提醒框），粘贴下方模板并把【】替换为上面对应变量即可。")
+                        Text("4. 回到本 App 点右上角「同步」，即可自动读完并秒切回来显示全部真实参数。")
+                    }
+                    .font(.footnote)
+                    .foregroundColor(.secondary)
+                    .padding(.vertical, 4)
+                }
+
+                Section(header: Text("「文本」动作模板（同时兼容中文键名）")) {
+                    Text(shortcutTextTemplate)
+                        .font(.system(size: 12, design: .monospaced))
+                        .foregroundColor(.primary)
+
+                    Button(copiedTemplate ? "已复制模板 ✓" : "复制模板") {
+                        #if canImport(UIKit)
+                        UIPasteboard.general.string = shortcutTextTemplate
+                        #endif
+                        copiedTemplate = true
+                    }
+                    .foregroundColor(primaryBlue)
+                }
+            }
+            .navigationTitle("快捷指令联动设置")
+            #if os(iOS)
+            .navigationBarTitleDisplayMode(.inline)
+            #endif
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("关闭") { dismiss() }
+                }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("保存") {
+                        saveName()
+                        dismiss()
+                    }
+                }
+            }
+        }
+        .onAppear {
+            nameInput = monitor.shortcutName
+        }
+    }
+
+    private func saveName() {
+        let trimmed = nameInput.trimmingCharacters(in: .whitespacesAndNewlines)
+        monitor.shortcutName = trimmed.isEmpty ? WiFiInfoMonitor.defaultShortcutName : trimmed
     }
 }

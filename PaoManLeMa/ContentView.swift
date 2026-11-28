@@ -49,7 +49,11 @@ struct ContentView: View {
             Button("取消", role: .cancel) {}
         }
         .onOpenURL { url in
-            _ = viewModel.importConfFile(from: url)
+            if wifiMonitor.handleCallbackURL(url) {
+                selectedTab = .wifi
+            } else {
+                _ = viewModel.importConfFile(from: url)
+            }
         }
         .onAppear {
             wifiMonitor.start()
