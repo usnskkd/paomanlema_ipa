@@ -282,14 +282,21 @@ private struct ShortcutSetupSheet: View {
     var body: some View {
         NavigationView {
             Form {
-                Section(header: Text("配套快捷指令名称")) {
+                Section(header: Text("配套快捷指令")) {
+                    if let icloudURL = URL(string: "https://www.icloud.com/shortcuts/bdb3f7b290b0414297bc042e921e9c7a") {
+                        Link(destination: icloudURL) {
+                            Label("一键安装配套快捷指令（iCloud）", systemImage: "square.and.arrow.down")
+                                .foregroundColor(primaryBlue)
+                        }
+                    }
+
                     TextField("跑满了吗WiFi", text: $nameInput)
                         .disableAutocorrection(true)
                         #if os(iOS)
                         .textInputAutocapitalization(.never)
                         #endif
 
-                    Button("立即调用该快捷指令测试") {
+                    Button("立即调用该快捷指令同步") {
                         saveName()
                         dismiss()
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {

@@ -5,6 +5,9 @@ on:
     branches: [ main, master ]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build-ipa:
     runs-on: macos-15
@@ -43,3 +46,27 @@ jobs:
           name: PaoManLeMa-iOS-IPA-WiFiTab
           path: PaoManLeMa.ipa
           retention-days: 30
+
+      - name: Publish latest PaoManLeMa.ipa to GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          printf '%s\n' \
+            '## 跑满了吗 iOS v1.0.0（未签名 IPA）' \
+            '' \
+            '- 支持**同时上传与下载（双向并发）**、单向下载、单向上传与实时速率曲线' \
+            '- 内置国内多节点测速方案（64 下载节点 + 119 上传节点），并支持导入 Android 同款 `.conf` 节点配置文件' \
+            '- 新增底部第二个 **Wi-Fi 信息** 界面：实时显示已连接 Wi-Fi 名称、安全性、路由器 BSSID、IPv4 与全部 IPv6 地址，并支持联动 Apple 快捷指令一键同步 `Wi-Fi 标准 / RSSI / RX&TX 速率 / 频段信道 / 硬件 MAC`' \
+            '' \
+            '### 配套快捷指令（一键导入）' \
+            'https://www.icloud.com/shortcuts/bdb3f7b290b0414297bc042e921e9c7a' \
+            > build/release_notes.md
+
+          if gh release view v1.0.0 >/dev/null 2>&1; then
+            gh release upload v1.0.0 PaoManLeMa.ipa PaoManLeMa/default_speed_profiles.conf --clobber
+            gh release edit v1.0.0 --title "跑满了吗 iOS v1.0.0" --notes-file build/release_notes.md
+          else
+            gh release create v1.0.0 PaoManLeMa.ipa PaoManLeMa/default_speed_profiles.conf \
+              --title "跑满了吗 iOS v1.0.0" \
+              --notes-file build/release_notes.md
+          fi
